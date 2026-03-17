@@ -1,83 +1,230 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, X } from "lucide-react";
+import { Send, X, Trash2 } from "lucide-react";
+import { supabase } from "../lib/supabase";
 import styles from "./MoodChat.module.css";
 
-const SYSTEM_PROMPT = `You are a compassionate mental wellness assistant inside MoodGuard, a journaling app. 
-Your role is to provide emotional support, help users reflect on their feelings, and suggest healthy coping strategies.
-Keep responses concise (2-4 sentences), warm, and non-clinical. Never diagnose. 
-If someone seems in crisis, gently suggest professional help or a crisis line.`;
+const ONBOARDING_QUESTIONS = [
+  { id: "name", text: "Hey there 👋 I'm your MoodGuard assistant. What should I call you?" },
+  { id: "age", text: "Nice to meet you! How old are you?" },
+  { id: "situation", text: "What's your current life situation? (student, working, between jobs, etc.)" },
+  { id: "main_concern", text: "What's been weighing on you the most lately?" },
+  { id: "support", text: "Do you have people around you — friends, family — you can talk to?" },
+  { id: "goal", text: "Last one — what are you hoping to get from these chats? (venting, advice, coping tips, just someone to talk to?)" },
+];
 
-export default function MoodChat({ onClose, lastCategory }) {
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content: `Hi! I'm here to chat about how you're feeling. ${
-        lastCategory === "depression" ? "I noticed your recent entries reflect some low mood — want to talk about it?" :
-        lastCategory === "anxiety" ? "I noticed some anxiety in your recent entries — I'm here to listen." :
-        lastCategory === "stress" ? "Looks like you've been under some stress lately — want to talk?" :
-        "How are you feeling today?"
-      }`,
+async function getToken() {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token;
+}
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+async function apiFetch(path, options = {}) {
+  const token = await getToken();
+  const res = await fetch(`${API}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
     },
-  ]);
+  });
+  return res.json();
+}
+
+export default function MoodChat({ onClose, lastCategory, entries = [] }) {
+  const [phase, setPhase] = useState("loading");
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [profile, setProfile] = useState(null);
+  const [tempProfile, setTempProfile] = useState({});
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
 
   useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function sendMessage() {
-    if (!input.trim() || loading) return;
+  async function loadInitialData() {
+    try {
+      const [profileRes, historyRes] = await Promise.all([
+        apiFetch("/api/chat/profile"),
+        apiFetch("/api/chat/history"),
+      ]);
 
-    const userMsg = { role: "user", content: input };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    setInput("");
+      if (profileRes.profile) {
+        // Returning user — load history
+        setProfile(profileRes.profile);
+        const history = historyRes.messages || [];
+        if (history.length === 0) {
+          setMessages([{
+            role: "assistant",
+            content: `Welcome back, ${profileRes.profile.name}! 👋 How are you feeling today?`,
+          }]);
+        } else {
+          setMessages(history);
+        }
+        setPhase("chat");
+      } else {
+        // New user — start onboarding
+        setMessages([{ role: "assistant", content: ONBOARDING_QUESTIONS[0].text }]);
+        setPhase("onboarding");
+      }
+    } catch {
+      setMessages([{ role: "assistant", content: "Hey! I'm having trouble connecting. Please try again." }]);
+      setPhase("onboarding");
+    }
+  }
+
+  async function handleOnboarding(answer) {
+    const currentQuestion = ONBOARDING_QUESTIONS[questionIndex];
+    const newTempProfile = { ...tempProfile, [currentQuestion.id]: answer };
+    setTempProfile(newTempProfile);
+
+    const nextIndex = questionIndex + 1;
+    setMessages((prev) => [...prev, { role: "user", content: answer }]);
+
+    if (nextIndex < ONBOARDING_QUESTIONS.length) {
+      setQuestionIndex(nextIndex);
+      setTimeout(() => {
+        setMessages((prev) => [...prev, { role: "assistant", content: ONBOARDING_QUESTIONS[nextIndex].text }]);
+      }, 400);
+    } else {
+      // Save profile
+      setLoading(true);
+      try {
+        const res = await apiFetch("/api/chat/profile", {
+          method: "POST",
+          body: JSON.stringify(newTempProfile),
+        });
+        setProfile(res.profile);
+
+        const recentMood = entries.slice(0, 3).map(e => `${e.mental_health_category} (${e.risk_score}%)`).join(", ") || lastCategory;
+
+        const welcomeMsg = `Thanks ${newTempProfile.name}! I've saved your profile so I'll remember you next time 🌿 I can see from your recent journal that you've been experiencing some ${lastCategory || "mixed emotions"}. I'm here — what's on your mind?`;
+
+        setTimeout(() => {
+          setMessages((prev) => [...prev, { role: "assistant", content: welcomeMsg }]);
+          setPhase("chat");
+        }, 400);
+
+        // Save welcome message to history
+        await apiFetch("/api/chat/message", {
+          method: "POST",
+          body: JSON.stringify({
+            message: "__system_welcome__",
+            profile: res.profile,
+            recentMood,
+          }),
+        });
+      } catch {
+        setMessages((prev) => [...prev, { role: "assistant", content: "Profile saved! What's on your mind?" }]);
+        setPhase("chat");
+      }
+      setLoading(false);
+    }
+  }
+
+  async function handleChat(userInput) {
+    setMessages((prev) => [...prev, { role: "user", content: userInput }]);
     setLoading(true);
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const recentMood = entries.slice(0, 3).map(e => `${e.mental_health_category} (${e.risk_score}%)`).join(", ") || lastCategory;
+
+      const res = await apiFetch("/api/chat/message", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: SYSTEM_PROMPT,
-          messages: newMessages,
+          message: userInput,
+          profile,
+          recentMood,
         }),
       });
 
-      const data = await response.json();
-      const reply = data.content?.[0]?.text || "I'm here for you. Can you tell me more?";
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      setMessages((prev) => [...prev, {
+        role: "assistant",
+        content: res.reply || "I'm here for you. Tell me more.",
+      }]);
     } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "Sorry, I couldn't connect. Please try again." }]);
+      setMessages((prev) => [...prev, {
+        role: "assistant",
+        content: "Sorry, I lost connection. Please try again.",
+      }]);
     }
 
     setLoading(false);
   }
 
+  async function sendMessage() {
+    if (!input.trim() || loading) return;
+    const value = input.trim();
+    setInput("");
+
+    if (phase === "onboarding") {
+      await handleOnboarding(value);
+    } else {
+      await handleChat(value);
+    }
+  }
+
+  async function clearHistory() {
+    await apiFetch("/api/chat/history", { method: "DELETE" });
+    setMessages([{ role: "assistant", content: `Chat cleared! How are you feeling today, ${profile?.name || ""}?` }]);
+  }
+
+  const progress = Math.min((questionIndex / ONBOARDING_QUESTIONS.length) * 100, 100);
+
   return (
     <div className={styles.overlay}>
       <div className={styles.panel}>
+        {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <div className={styles.avatar}>M</div>
             <div>
               <p className={styles.name}>MoodGuard AI</p>
-              <p className={styles.status}>Here to listen</p>
+              <p className={styles.status}>
+                {phase === "loading" ? "Connecting..." :
+                 phase === "onboarding" ? `Getting to know you (${questionIndex}/${ONBOARDING_QUESTIONS.length})` :
+                 `Chatting with ${profile?.name || "you"}`}
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className={styles.close}><X size={16} /></button>
+          <div style={{ display: "flex", gap: 6 }}>
+            {phase === "chat" && (
+              <button onClick={clearHistory} className={styles.close} title="Clear history">
+                <Trash2 size={14} />
+              </button>
+            )}
+            <button onClick={onClose} className={styles.close}><X size={16} /></button>
+          </div>
         </div>
 
+        {/* Progress bar */}
+        {phase === "onboarding" && (
+          <div className={styles.progressBar}>
+            <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+          </div>
+        )}
+
+        {/* Messages */}
         <div className={styles.messages}>
-          {messages.map((m, i) => (
-            <div key={i} className={`${styles.message} ${m.role === "user" ? styles.user : styles.assistant}`}>
-              <p>{m.content}</p>
+          {phase === "loading" ? (
+            <div className={styles.loadingWrap}>
+              <div className={styles.spinner} />
             </div>
-          ))}
+          ) : (
+            messages.map((m, i) => (
+              <div key={i} className={`${styles.message} ${m.role === "user" ? styles.user : styles.assistant}`}>
+                <p>{m.content}</p>
+              </div>
+            ))
+          )}
           {loading && (
             <div className={`${styles.message} ${styles.assistant}`}>
               <div className={styles.typing}>
@@ -88,15 +235,18 @@ export default function MoodChat({ onClose, lastCategory }) {
           <div ref={bottomRef} />
         </div>
 
+        {/* Input */}
         <div className={styles.inputRow}>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            placeholder="Type a message..."
+            placeholder={phase === "onboarding" ? "Type your answer..." : "Type a message..."}
             className={styles.input}
+            disabled={phase === "loading"}
+            autoFocus
           />
-          <button onClick={sendMessage} disabled={!input.trim() || loading} className={styles.sendBtn}>
+          <button onClick={sendMessage} disabled={!input.trim() || loading || phase === "loading"} className={styles.sendBtn}>
             <Send size={14} />
           </button>
         </div>

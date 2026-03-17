@@ -270,7 +270,6 @@ export default function Dashboard() {
       </button>
 
       {/* Chat Panel */}
-      {showChat && <MoodChat onClose={() => setShowChat(false)} lastCategory={dominantCategory} />}
-    </div>
+      {showChat && <MoodChat onClose={() => setShowChat(false)} lastCategory={dominantCategory} entries={entries || []} />}     </div>
   );
 }

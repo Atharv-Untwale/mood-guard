@@ -100,3 +100,34 @@ export async function deleteEntry(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
+
+export async function chat(req, res) {
+  try {
+    const { messages, systemPrompt } = req.body;
+    if (!messages?.length) return res.status(400).json({ error: "Messages required" });
+
+    const system = systemPrompt || "You are a compassionate mental wellness assistant. Keep responses concise (2-4 sentences), warm, and non-clinical. Never diagnose. If someone seems in crisis, gently suggest professional help.";
+
+    const response = await axios.post(
+      "https://api.anthropic.com/v1/messages",
+      {
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1000,
+        system,
+        messages,
+      },
+      {
+        headers: {
+          "x-api-key": process.env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+      }
+    );
+
+    res.json({ reply: response.data.content[0].text });
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    res.status(500).json({ error: "AI chat failed" });
+  }
+}
