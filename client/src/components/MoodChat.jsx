@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import styles from "./MoodChat.module.css";
 
 const ONBOARDING_QUESTIONS = [
-  { id: "name", text: "Hey there 👋 I'm your MoodGuard assistant. What should I call you?" },
+  { id: "name", text: "Hey there 👋 I'm your Well-Scope assistant. What should I call you?" },
   { id: "age", text: "Nice to meet you! How old are you?" },
   { id: "situation", text: "What's your current life situation? (student, working, between jobs, etc.)" },
   { id: "main_concern", text: "What's been weighing on you the most lately?" },
@@ -187,7 +187,7 @@ export default function MoodChat({ onClose, lastCategory, entries = [] }) {
           <div className={styles.headerLeft}>
             <div className={styles.avatar}>M</div>
             <div>
-              <p className={styles.name}>MoodGuard AI</p>
+              <p className={styles.name}>Well-Scope AI</p>
               <p className={styles.status}>
                 {phase === "loading" ? "Connecting..." :
                  phase === "onboarding" ? `Getting to know you (${questionIndex}/${ONBOARDING_QUESTIONS.length})` :

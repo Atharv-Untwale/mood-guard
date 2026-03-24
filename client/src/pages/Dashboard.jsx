@@ -102,7 +102,7 @@ export default function Dashboard() {
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.logoIcon}>M</div>
-          <span className={styles.logoText}>MoodGuard</span>
+          <span className={styles.logoText}>Well-Scope</span>
         </div>
         <div className={styles.headerRight}>
           <span className={styles.email}>{user?.email}</span>
