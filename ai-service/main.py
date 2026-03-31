@@ -24,7 +24,7 @@ classifier = pipeline(
     "text-classification",
     model=MODEL_NAME,
     return_all_scores=True,
-    device=0 if torch.cuda.is_available() else -1,
+    device=-1,  # force CPU
 )
 print("Model loaded!")
 
