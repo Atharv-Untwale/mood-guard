@@ -1,72 +1,62 @@
 .card {
   background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 20px;
+  box-shadow: 0 1px 4px rgba(44,36,24,0.06);
 }
 
 .title {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text2);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   margin-bottom: 16px;
 }
 
 .sub {
   font-weight: 400;
-  color: var(--text3);
+  color: var(--text4);
   margin-left: 4px;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(63, 1fr);
   gap: 3px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .cell {
   aspect-ratio: 1;
   border-radius: 2px;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, transform 0.1s;
   min-width: 0;
 }
 
-.cell:hover { opacity: 0.7; }
+.cell:hover { opacity: 0.7; transform: scale(1.2); }
 
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
 .legendItem {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 10px;
-  color: var(--text2);
+  color: var(--text3);
+  letter-spacing: 0.04em;
 }
 
 .legendDot {
   width: 8px;
   height: 8px;
   border-radius: 2px;
-}
-
-.loadingWrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--border);
-  border-top-color: var(--green);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
 }

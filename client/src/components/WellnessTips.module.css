@@ -1,27 +1,14 @@
 .card {
-  background: var(--green-bg);
-  border: 1px solid var(--green-border);
-  border-radius: 12px;
-  padding: 20px;
+  background: var(--glass);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--glass-border);
+  border-left: 3px solid var(--yellow);
+  border-radius: 16px;
+  padding: 14px 16px;
 }
-
-.header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.icon { font-size: 16px; }
-
-.title {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--green);
-}
-
-.tip {
-  font-size: 13px;
-  color: var(--text);
-  line-height: 1.7;
-}
+.header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.icon { font-size: 14px; }
+.title { font-size: 10px; font-weight: 700; color: var(--yellow-text); letter-spacing: 0.08em; text-transform: uppercase; }
+[data-theme="dark"] .title { color: var(--yellow); }
+.tip { font-size: 13px; color: var(--text2); line-height: 1.7; }

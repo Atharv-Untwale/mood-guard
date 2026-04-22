@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import styles from "./MoodChat.module.css";
 
 const ONBOARDING_QUESTIONS = [
-  { id: "name", text: "Hey there 👋 I'm your Well-Scope assistant. What should I call you?" },
+  { id: "name", text: "Hey there 👋 I'm your MoodGuard assistant. What should I call you?" },
   { id: "age", text: "Nice to meet you! How old are you?" },
   { id: "situation", text: "What's your current life situation? (student, working, between jobs, etc.)" },
   { id: "main_concern", text: "What's been weighing on you the most lately?" },
@@ -32,7 +32,7 @@ async function apiFetch(path, options = {}) {
   return res.json();
 }
 
-export default function MoodChat({ onClose, lastCategory, entries = [] }) {
+export default function MoodChat({ onClose, lastCategory, entries = [], lastEntry = null }) {
   const [phase, setPhase] = useState("loading");
   const [questionIndex, setQuestionIndex] = useState(0);
   const [profile, setProfile] = useState(null);
@@ -58,20 +58,27 @@ export default function MoodChat({ onClose, lastCategory, entries = [] }) {
       ]);
 
       if (profileRes.profile) {
-        // Returning user — load history
         setProfile(profileRes.profile);
         const history = historyRes.messages || [];
         if (history.length === 0) {
           setMessages([{
             role: "assistant",
-            content: `Welcome back, ${profileRes.profile.name}! 👋 How are you feeling today?`,
+            content: `Welcome back, ${profileRes.profile.name} 👋 ${
+              lastEntry
+                ? `I noticed your last entry — "${lastEntry.text.slice(0, 60)}${lastEntry.text.length > 60 ? "..." : ""}" — it felt like ${lastEntry.mental_health_category || "a lot"}. How are you feeling since then?`
+                : "How are you feeling today?"
+            }`,
           }]);
         } else {
-          setMessages(history);
+          // Always prepend latest entry context at top of history
+          const contextMsg = lastEntry ? {
+            role: "assistant",
+            content: `Just so you know, your latest journal entry shows ${lastEntry.mental_health_category || "some emotions"} with a risk score of ${lastEntry.risk_score}%. I'll keep that in mind as we chat.`,
+          } : null;
+          setMessages(contextMsg ? [contextMsg, ...history] : history);
         }
         setPhase("chat");
       } else {
-        // New user — start onboarding
         setMessages([{ role: "assistant", content: ONBOARDING_QUESTIONS[0].text }]);
         setPhase("onboarding");
       }
@@ -95,7 +102,6 @@ export default function MoodChat({ onClose, lastCategory, entries = [] }) {
         setMessages((prev) => [...prev, { role: "assistant", content: ONBOARDING_QUESTIONS[nextIndex].text }]);
       }, 400);
     } else {
-      // Save profile
       setLoading(true);
       try {
         const res = await apiFetch("/api/chat/profile", {
@@ -104,16 +110,21 @@ export default function MoodChat({ onClose, lastCategory, entries = [] }) {
         });
         setProfile(res.profile);
 
-        const recentMood = entries.slice(0, 3).map(e => `${e.mental_health_category} (${e.risk_score}%)`).join(", ") || lastCategory;
+        const recentMood = entries.slice(0, 3)
+          .map(e => `${e.mental_health_category} (${e.risk_score}%)`)
+          .join(", ") || lastCategory;
 
-        const welcomeMsg = `Thanks ${newTempProfile.name}! I've saved your profile so I'll remember you next time 🌿 I can see from your recent journal that you've been experiencing some ${lastCategory || "mixed emotions"}. I'm here — what's on your mind?`;
+        const welcomeMsg = `Thanks ${newTempProfile.name}! I've saved your profile so I'll remember you next time 🌿${
+          lastEntry
+            ? ` I can see your latest journal entry shows ${lastEntry.mental_health_category || "some emotions"} — want to talk about it?`
+            : ` I can see you've been experiencing some ${lastCategory || "mixed emotions"}. I'm here — what's on your mind?`
+        }`;
 
         setTimeout(() => {
           setMessages((prev) => [...prev, { role: "assistant", content: welcomeMsg }]);
           setPhase("chat");
         }, 400);
 
-        // Save welcome message to history
         await apiFetch("/api/chat/message", {
           method: "POST",
           body: JSON.stringify({
@@ -135,7 +146,13 @@ export default function MoodChat({ onClose, lastCategory, entries = [] }) {
     setLoading(true);
 
     try {
-      const recentMood = entries.slice(0, 3).map(e => `${e.mental_health_category} (${e.risk_score}%)`).join(", ") || lastCategory;
+      const recentMood = entries.slice(0, 3)
+        .map(e => `${e.mental_health_category} (${e.risk_score}%)`)
+        .join(", ") || lastCategory;
+
+      const latestEntryContext = lastEntry
+        ? `Latest journal entry: "${lastEntry.text.slice(0, 150)}" — emotion: ${lastEntry.mental_health_category}, risk: ${lastEntry.risk_score}%`
+        : null;
 
       const res = await apiFetch("/api/chat/message", {
         method: "POST",
@@ -143,6 +160,7 @@ export default function MoodChat({ onClose, lastCategory, entries = [] }) {
           message: userInput,
           profile,
           recentMood,
+          latestEntryContext,
         }),
       });
 
@@ -164,17 +182,16 @@ export default function MoodChat({ onClose, lastCategory, entries = [] }) {
     if (!input.trim() || loading) return;
     const value = input.trim();
     setInput("");
-
-    if (phase === "onboarding") {
-      await handleOnboarding(value);
-    } else {
-      await handleChat(value);
-    }
+    if (phase === "onboarding") await handleOnboarding(value);
+    else await handleChat(value);
   }
 
   async function clearHistory() {
     await apiFetch("/api/chat/history", { method: "DELETE" });
-    setMessages([{ role: "assistant", content: `Chat cleared! How are you feeling today, ${profile?.name || ""}?` }]);
+    setMessages([{
+      role: "assistant",
+      content: `Chat cleared! How are you feeling today, ${profile?.name || ""}?`,
+    }]);
   }
 
   const progress = Math.min((questionIndex / ONBOARDING_QUESTIONS.length) * 100, 100);
@@ -182,12 +199,11 @@ export default function MoodChat({ onClose, lastCategory, entries = [] }) {
   return (
     <div className={styles.overlay}>
       <div className={styles.panel}>
-        {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <div className={styles.avatar}>M</div>
             <div>
-              <p className={styles.name}>Well-Scope AI</p>
+              <p className={styles.name}>MoodGuard AI</p>
               <p className={styles.status}>
                 {phase === "loading" ? "Connecting..." :
                  phase === "onboarding" ? `Getting to know you (${questionIndex}/${ONBOARDING_QUESTIONS.length})` :
@@ -205,14 +221,12 @@ export default function MoodChat({ onClose, lastCategory, entries = [] }) {
           </div>
         </div>
 
-        {/* Progress bar */}
         {phase === "onboarding" && (
           <div className={styles.progressBar}>
             <div className={styles.progressFill} style={{ width: `${progress}%` }} />
           </div>
         )}
 
-        {/* Messages */}
         <div className={styles.messages}>
           {phase === "loading" ? (
             <div className={styles.loadingWrap}>
@@ -235,7 +249,6 @@ export default function MoodChat({ onClose, lastCategory, entries = [] }) {
           <div ref={bottomRef} />
         </div>
 
-        {/* Input */}
         <div className={styles.inputRow}>
           <input
             value={input}
@@ -246,7 +259,11 @@ export default function MoodChat({ onClose, lastCategory, entries = [] }) {
             disabled={phase === "loading"}
             autoFocus
           />
-          <button onClick={sendMessage} disabled={!input.trim() || loading || phase === "loading"} className={styles.sendBtn}>
+          <button
+            onClick={sendMessage}
+            disabled={!input.trim() || loading || phase === "loading"}
+            className={styles.sendBtn}
+          >
             <Send size={14} />
           </button>
         </div>

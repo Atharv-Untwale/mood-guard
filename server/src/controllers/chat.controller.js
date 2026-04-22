@@ -30,7 +30,7 @@ Guidelines:
 - Tailor advice to their age, situation and goal
 - If their goal is venting, mostly listen and validate feelings
 - If their goal is advice, be practical and specific
-- Reference their past concerns and journal mood when relevant
+- Reference their latest journal entry when relevant — it tells you exactly how they are feeling right now
 - Never diagnose or replace professional help
 - If they seem in crisis, gently suggest a helpline like iCall (9152987821) for India`;
 }
@@ -93,15 +93,17 @@ export async function getHistory(req, res) {
 // POST /api/chat/message
 export async function sendMessage(req, res) {
   try {
-    const { message, profile, recentMood } = req.body;
+    const { message, profile, recentMood, latestEntryContext } = req.body;
     if (!message?.trim()) return res.status(400).json({ error: "Message required" });
 
-    // Save user message
-    await supabase.from("chat_messages").insert({
-      user_id: req.user.id,
-      role: "user",
-      content: message,
-    });
+    // Skip saving system welcome message
+    if (message !== "__system_welcome__") {
+      await supabase.from("chat_messages").insert({
+        user_id: req.user.id,
+        role: "user",
+        content: message,
+      });
+    }
 
     // Get last 20 messages for context
     const { data: history } = await supabase
@@ -113,7 +115,17 @@ export async function sendMessage(req, res) {
 
     const contextMessages = (history || []).reverse();
 
-    const systemPrompt = buildSystemPrompt(profile, recentMood);
+    // Build system prompt with latest entry context
+    const fullRecentMood = latestEntryContext
+      ? `${recentMood || "unknown"} | ${latestEntryContext}`
+      : recentMood;
+
+    const systemPrompt = buildSystemPrompt(profile, fullRecentMood);
+
+    // Skip AI call for system welcome
+    if (message === "__system_welcome__") {
+      return res.json({ reply: null });
+    }
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
@@ -121,12 +133,12 @@ export async function sendMessage(req, res) {
       messages: [
         { role: "system", content: systemPrompt },
         ...contextMessages,
+        { role: "user", content: message },
       ],
     });
 
     const reply = completion.choices[0]?.message?.content || "I'm here for you. Tell me more.";
 
-    // Save assistant reply
     await supabase.from("chat_messages").insert({
       user_id: req.user.id,
       role: "assistant",
