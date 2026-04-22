@@ -24,17 +24,16 @@ export default function Auth() {
   }
 
   async function handleGoogle() {
-    setGoogleLoading(true);
-    setError("");
-    const { error: err } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/`,
-        queryParams: { access_type: "offline", prompt: "consent" },
-      },
-    });
-    if (err) { setError(err.message); setGoogleLoading(false); }
-  }
+  setGoogleLoading(true);
+  setError("");
+  const { error: err } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${window.location.origin}`,
+    },
+  });
+  if (err) { setError(err.message); setGoogleLoading(false); }
+}
 
   return (
     <div style={{
