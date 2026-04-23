@@ -4,7 +4,7 @@ import Groq from "groq-sdk";
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const ONBOARDING_QUESTIONS = [
-  { id: "name", text: "Hey there 👋 I'm your MoodGuard assistant. What should I call you?" },
+  { id: "name", text: "Hey there 👋 I'm your WellScopeGuard assistant. What should I call you?" },
   { id: "age", text: "Nice to meet you! How old are you?" },
   { id: "situation", text: "What's your current life situation? (student, working, between jobs, etc.)" },
   { id: "main_concern", text: "What's been weighing on you the most lately?" },
@@ -12,8 +12,8 @@ const ONBOARDING_QUESTIONS = [
   { id: "goal", text: "Last one — what are you hoping to get from these chats? (venting, advice, coping tips, just someone to talk to?)" },
 ];
 
-function buildSystemPrompt(profile, recentMood) {
-  return `You are a warm, empathetic mental wellness companion inside MoodGuard, a journaling app.
+function buildSystemPrompt(profile, recentWellScope) {
+  return `You are a warm, empathetic mental wellness companion inside WellScopeGuard, a journaling app.
 
 User profile:
 - Name: ${profile.name}
@@ -22,7 +22,7 @@ User profile:
 - Main concern: ${profile.main_concern}
 - Support system: ${profile.support}
 - Goal from these chats: ${profile.goal}
-- Recent journal mood: ${recentMood || "unknown"}
+- Recent journal WellScope: ${recentWellScope || "unknown"}
 
 Guidelines:
 - Always address them by name (${profile.name})
@@ -93,7 +93,7 @@ export async function getHistory(req, res) {
 // POST /api/chat/message
 export async function sendMessage(req, res) {
   try {
-    const { message, profile, recentMood, latestEntryContext } = req.body;
+    const { message, profile, recentWellScope, latestEntryContext } = req.body;
     if (!message?.trim()) return res.status(400).json({ error: "Message required" });
 
     // Skip saving system welcome message
@@ -116,11 +116,11 @@ export async function sendMessage(req, res) {
     const contextMessages = (history || []).reverse();
 
     // Build system prompt with latest entry context
-    const fullRecentMood = latestEntryContext
-      ? `${recentMood || "unknown"} | ${latestEntryContext}`
-      : recentMood;
+    const fullRecentWellScope = latestEntryContext
+      ? `${recentWellScope || "unknown"} | ${latestEntryContext}`
+      : recentWellScope;
 
-    const systemPrompt = buildSystemPrompt(profile, fullRecentMood);
+    const systemPrompt = buildSystemPrompt(profile, fullRecentWellScope);
 
     // Skip AI call for system welcome
     if (message === "__system_welcome__") {

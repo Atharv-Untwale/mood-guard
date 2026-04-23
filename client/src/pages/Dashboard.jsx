@@ -8,10 +8,10 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
 import { useTheme } from "../lib/ThemeContext";
 import { exportPDF } from "../lib/exportPDF";
-import MoodCalendar from "../components/MoodCalendar";
+import WellScopeCalendar from "../components/WellScopeCalendar";
 import StreakTracker from "../components/StreakTracker";
 import WellnessTips from "../components/WellnessTips";
-import MoodChat from "../components/MoodChat";
+import WellScopeChat from "../components/WellScopeChat";
 import { SkeletonCard, SkeletonEntry } from "../components/SkeletonCard";
 import styles from "./Dashboard.module.css";
 
@@ -24,7 +24,7 @@ const CATEGORY_COLORS = {
 };
 
 const CATEGORY_LABELS = {
-  depression: "Low Mood",
+  depression: "Low WellScope",
   anxiety: "Anxiety",
   stress: "Stress",
   positive: "Positive",
@@ -111,7 +111,7 @@ export default function Dashboard() {
         <header className={styles.header}>
           <div className={styles.headerLeft}>
             <div className={styles.logoWrap}>
-              <span className={styles.logoText}>MoodGuard</span>
+              <span className={styles.logoText}>WellScope</span>
             </div>
             <nav className={styles.nav}>
               <button className={`${styles.navItem} ${tab === "journal" ? styles.active : ""}`} onClick={() => setTab("journal")}>
@@ -208,15 +208,15 @@ export default function Dashboard() {
                 </div>
                 <div className={styles.profileInfo}>
                   <div className={styles.profileName}>{user?.email?.split("@")[0] || "User"}</div>
-                  <div className={styles.profileRole}>MoodGuard User</div>
+                  <div className={styles.profileRole}>WellScope User</div>
                   <div className={styles.profileBadge}>{avgRisk}% avg risk</div>
                 </div>
               </div>
 
-              {/* Mood progress */}
+              {/* WellScope progress */}
               <div className={styles.glassCard}>
                 <div className={styles.cardHeader}>
-                  <span className={styles.cardTitle}>Mood progress</span>
+                  <span className={styles.cardTitle}>WellScope progress</span>
                   <div className={styles.cardLink}>↗</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -269,10 +269,10 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Mood balance + journal entries */}
+              {/* WellScope balance + journal entries */}
               <div className={styles.glassCard} style={{ padding: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <span className={styles.cardTitle}>Mood balance</span>
+                  <span className={styles.cardTitle}>WellScope balance</span>
                   <span className={styles.balancePct}>{distData[0] ? Math.round((distData[0].value / totalEntries) * 100) : 0}%</span>
                 </div>
                 <div className={styles.obBars}>
@@ -315,7 +315,7 @@ export default function Dashboard() {
             <div className={styles.bottomRow}>
               {/* Sidebar */}
               <div className={styles.sidebar}>
-                <div className={styles.sideTitle}>Mood Tools</div>
+                <div className={styles.sideTitle}>WellScope Tools</div>
                 <div className={styles.sideRow}>
                   <span className={styles.sideLabel}>Wellness tips</span>
                   <span className={styles.sideArrow}>∨</span>
@@ -323,7 +323,7 @@ export default function Dashboard() {
                 <div className={styles.deviceRow}>
                   <div className={styles.deviceIcon}>AI</div>
                   <div>
-                    <div className={styles.deviceName}>MoodGuard AI</div>
+                    <div className={styles.deviceName}>WellScope AI</div>
                     <div className={styles.deviceSub}>Llama 3.1 powered</div>
                   </div>
                 </div>
@@ -397,8 +397,8 @@ export default function Dashboard() {
               {/* Right col */}
               <div className={styles.rightCol}>
                 <div className={styles.todayCard}>
-                  <div className={styles.todayLabel}>TODAY'S MOOD</div>
-                  <div className={styles.todayMood}>{CATEGORY_LABELS[entries?.[0]?.mental_health_category] || "—"}</div>
+                  <div className={styles.todayLabel}>TODAY'S WellScope</div>
+                  <div className={styles.todayWellScope}>{CATEGORY_LABELS[entries?.[0]?.mental_health_category] || "—"}</div>
                   <div className={styles.todayRisk}>Risk score: {entries?.[0]?.risk_score || 0}%</div>
                   <button className={styles.todayBtn} onClick={() => document.querySelector("textarea")?.focus()}>
                     Write new entry →
@@ -428,7 +428,7 @@ export default function Dashboard() {
               {[
                 { label: "Total entries", value: totalEntries, unit: "" },
                 { label: "Avg risk score", value: avgRisk, unit: "%" },
-                { label: "Dominant mood", value: distData[0]?.name || "—", unit: "", small: true },
+                { label: "Dominant WellScope", value: distData[0]?.name || "—", unit: "", small: true },
                 { label: "Days journaled", value: [...new Set((entries || []).map(e => format(new Date(e.created_at), "yyyy-MM-dd")))].length, unit: "" },
               ].map(({ label, value, unit, small }) => (
                 <div key={label} className={styles.analyticsCard}>
@@ -454,7 +454,7 @@ export default function Dashboard() {
                   </ResponsiveContainer>
                 </div>
                 <div className={styles.chartCard}>
-                  <div className={styles.chartTitle}>Mood distribution</div>
+                  <div className={styles.chartTitle}>WellScope distribution</div>
                   <ResponsiveContainer width="100%" height={160}>
                     <BarChart data={distData} barSize={24}>
                       <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text3)" }} axisLine={false} tickLine={false} />
@@ -469,7 +469,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            <MoodCalendar entries={entries || []} />
+            <WellScopeCalendar entries={entries || []} />
             <StreakTracker entries={entries || []} />
           </div>
         )}
@@ -480,7 +480,7 @@ export default function Dashboard() {
       </button>
 
       {showChat && (
-        <MoodChat
+        <WellScopeChat
           onClose={() => setShowChat(false)}
           lastCategory={dominantCategory}
           entries={entries || []}

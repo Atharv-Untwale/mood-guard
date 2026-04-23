@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, X, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
-import styles from "./MoodChat.module.css";
+import styles from "./WellScopeChat.module.css";
 
 const ONBOARDING_QUESTIONS = [
-  { id: "name", text: "Hey there 👋 I'm your MoodGuard assistant. What should I call you?" },
+  { id: "name", text: "Hey there 👋 I'm your WellScope assistant. What should I call you?" },
   { id: "age", text: "Nice to meet you! How old are you?" },
   { id: "situation", text: "What's your current life situation? (student, working, between jobs, etc.)" },
   { id: "main_concern", text: "What's been weighing on you the most lately?" },
@@ -32,7 +32,7 @@ async function apiFetch(path, options = {}) {
   return res.json();
 }
 
-export default function MoodChat({ onClose, lastCategory, entries = [], lastEntry = null }) {
+export default function WellScopeChat({ onClose, lastCategory, entries = [], lastEntry = null }) {
   const [phase, setPhase] = useState("loading");
   const [questionIndex, setQuestionIndex] = useState(0);
   const [profile, setProfile] = useState(null);
@@ -110,7 +110,7 @@ export default function MoodChat({ onClose, lastCategory, entries = [], lastEntr
         });
         setProfile(res.profile);
 
-        const recentMood = entries.slice(0, 3)
+        const recentWellScope = entries.slice(0, 3)
           .map(e => `${e.mental_health_category} (${e.risk_score}%)`)
           .join(", ") || lastCategory;
 
@@ -130,7 +130,7 @@ export default function MoodChat({ onClose, lastCategory, entries = [], lastEntr
           body: JSON.stringify({
             message: "__system_welcome__",
             profile: res.profile,
-            recentMood,
+            recentWellScope,
           }),
         });
       } catch {
@@ -146,7 +146,7 @@ export default function MoodChat({ onClose, lastCategory, entries = [], lastEntr
     setLoading(true);
 
     try {
-      const recentMood = entries.slice(0, 3)
+      const recentWellScope = entries.slice(0, 3)
         .map(e => `${e.mental_health_category} (${e.risk_score}%)`)
         .join(", ") || lastCategory;
 
@@ -159,7 +159,7 @@ export default function MoodChat({ onClose, lastCategory, entries = [], lastEntr
         body: JSON.stringify({
           message: userInput,
           profile,
-          recentMood,
+          recentWellScope,
           latestEntryContext,
         }),
       });
@@ -203,7 +203,7 @@ export default function MoodChat({ onClose, lastCategory, entries = [], lastEntr
           <div className={styles.headerLeft}>
             <div className={styles.avatar}>M</div>
             <div>
-              <p className={styles.name}>MoodGuard AI</p>
+              <p className={styles.name}>WellScope AI</p>
               <p className={styles.status}>
                 {phase === "loading" ? "Connecting..." :
                  phase === "onboarding" ? `Getting to know you (${questionIndex}/${ONBOARDING_QUESTIONS.length})` :

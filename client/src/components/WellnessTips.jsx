@@ -2,7 +2,7 @@ import styles from "./WellnessTips.module.css";
 
 const TIPS = {
   depression: [
-    "Try a 10-minute walk outside — sunlight and movement lift mood naturally.",
+    "Try a 10-minute walk outside — sunlight and movement lift WellScope naturally.",
     "Reach out to one person you trust today, even just a short message.",
     "Write down 3 small things you're grateful for right now.",
     "Listen to music that has helped you feel better in the past.",
@@ -20,14 +20,14 @@ const TIPS = {
     "A short nap (20 min) can reset your stress levels significantly.",
   ],
   positive: [
-    "Great mood! Use this energy to tackle something you've been avoiding.",
+    "Great WellScope! Use this energy to tackle something you've been avoiding.",
     "Share your positive energy — reach out to a friend or family member.",
     "Journal about what's going well so you can revisit it on harder days.",
     "This is a great time to set goals or start something new.",
   ],
   neutral: [
     "A balanced state is healthy — use it for focused, calm work.",
-    "Try something new today — novelty boosts mood naturally.",
+    "Try something new today — novelty boosts WellScope naturally.",
     "Check in with your body: are you hydrated and well-rested?",
     "A short meditation can deepen your sense of calm.",
   ],

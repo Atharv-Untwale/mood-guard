@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { format, eachDayOfInterval, subDays, startOfDay } from "date-fns";
-import styles from "./MoodCalendar.module.css";
+import styles from "./WellScopeCalendar.module.css";
 
 const COLORS = {
   depression: "#94a3b8",
@@ -10,7 +10,7 @@ const COLORS = {
   neutral: "#cbd5e1",
 };
 
-export default function MoodCalendar({ entries = [] }) {
+export default function WellScopeCalendar({ entries = [] }) {
   const days = useMemo(() => {
     const end = new Date();
     const start = subDays(end, 62);
@@ -30,7 +30,7 @@ export default function MoodCalendar({ entries = [] }) {
 
   return (
     <div className={styles.card}>
-      <p className={styles.title}>Mood calendar <span className={styles.sub}>last 9 weeks</span></p>
+      <p className={styles.title}>Well-Scope calendar <span className={styles.sub}>last 9 weeks</span></p>
       <div className={styles.grid}>
         {days.map((day) => {
           const key = format(day, "yyyy-MM-dd");
