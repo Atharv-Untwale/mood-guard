@@ -17,7 +17,7 @@ app.add_middleware(
 )
 
 HF_TOKEN = os.getenv("HF_TOKEN")
-MODEL_URL = "https://api-inference.huggingface.co/models/j-hartmann/emotion-english-distilroberta-base"
+MODEL_URL = "https://router.huggingface.co/hf-inference/models/j-hartmann/emotion-english-distilroberta-base"
 
 RISK_MAP = {
     "sadness": {"category": "depression", "weight": 0.85},
@@ -42,12 +42,16 @@ class TextInput(BaseModel):
 
 @app.get("/health")
 def health():
+    print("HF_TOKEN loaded:", bool(HF_TOKEN))
     return {"status": "ok", "mode": "huggingface-inference-api"}
 
 @app.post("/predict")
 async def predict(body: TextInput):
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty")
+
+    if not HF_TOKEN:
+        raise HTTPException(status_code=500, detail="HF_TOKEN is not set in environment")
 
     text = body.text[:512]
 
@@ -58,18 +62,25 @@ async def predict(body: TextInput):
             json={"inputs": text},
         )
 
+    print("HF status:", response.status_code)
+    print("HF response:", response.text)
+
+    if response.status_code == 503:
+        raise HTTPException(status_code=503, detail=f"Model is loading, please retry in a few seconds: {response.text}")
+
     if response.status_code != 200:
-        raise HTTPException(status_code=500, detail=f"HF API error: {response.text}")
+        raise HTTPException(status_code=500, detail=f"HF API error {response.status_code}: {response.text}")
 
     data = response.json()
+    print("HF data:", data)
 
     # HF returns [[{label, score}, ...]]
-    if isinstance(data, list) and isinstance(data[0], list):
+    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], list):
         results = data[0]
-    elif isinstance(data, list):
+    elif isinstance(data, list) and len(data) > 0:
         results = data
     else:
-        raise HTTPException(status_code=500, detail="Unexpected response format")
+        raise HTTPException(status_code=500, detail=f"Unexpected response format: {data}")
 
     scores = {r["label"].lower(): round(r["score"] * 100, 2) for r in results}
     top = max(results, key=lambda x: x["score"])
