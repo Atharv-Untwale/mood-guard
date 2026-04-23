@@ -1,7 +1,66 @@
 import { supabase } from "../lib/supabase.js";
 import axios from "axios";
 
-const AI_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";
+const HF_TOKEN = process.env.HF_TOKEN;
+const MODEL_URL = "https://router.huggingface.co/hf-inference/models/j-hartmann/emotion-english-distilroberta-base";
+
+const RISK_MAP = {
+  sadness: { category: "depression", weight: 0.85 },
+  fear:    { category: "anxiety",    weight: 0.80 },
+  anger:   { category: "stress",     weight: 0.70 },
+  disgust: { category: "stress",     weight: 0.60 },
+  joy:     { category: "positive",   weight: 0.00 },
+  surprise:{ category: "neutral",    weight: 0.10 },
+  neutral: { category: "neutral",    weight: 0.05 },
+};
+
+const SUMMARIES = {
+  depression: "Your entry reflects signs of sadness or low mood. Consider reaching out to someone you trust.",
+  anxiety:    "Your entry shows signs of worry or fear. Breathing exercises and grounding techniques may help.",
+  stress:     "Your entry suggests elevated stress. Taking short breaks and self-care activities can help.",
+  positive:   "Your entry reflects a positive state of mind. Keep nurturing these feelings!",
+  neutral:    "Your entry appears emotionally balanced.",
+};
+
+async function analyzeEmotion(text) {
+  const response = await axios.post(
+    MODEL_URL,
+    { inputs: text.slice(0, 512) },
+    {
+      headers: {
+        Authorization: `Bearer ${HF_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 30000,
+    }
+  );
+
+  const data = response.data;
+
+  // HF returns [[{label, score}, ...]]
+  const results = Array.isArray(data[0]) ? data[0] : data;
+
+  const scores = Object.fromEntries(
+    results.map((r) => [r.label.toLowerCase(), round(r.score * 100)])
+  );
+
+  const top = results.reduce((a, b) => (a.score > b.score ? a : b));
+  const topLabel = top.label.toLowerCase();
+  const riskInfo = RISK_MAP[topLabel] ?? { category: "neutral", weight: 0.1 };
+
+  return {
+    primary_emotion: topLabel,
+    primary_score: round(top.score * 100),
+    mental_health_category: riskInfo.category,
+    risk_score: round(top.score * riskInfo.weight * 100),
+    all_scores: scores,
+    summary: SUMMARIES[riskInfo.category] ?? "",
+  };
+}
+
+function round(n) {
+  return +n.toFixed(2);
+}
 
 export async function createEntry(req, res) {
   try {
@@ -10,11 +69,10 @@ export async function createEntry(req, res) {
 
     let prediction;
     try {
-      const aiRes = await axios.post(`${AI_URL}/predict`, { text }, { timeout: 10000 });
-      prediction = aiRes.data;
+      prediction = await analyzeEmotion(text);
     } catch (aiErr) {
-      console.error("AI service error:", aiErr.message);
-      return res.status(503).json({ error: `AI service unavailable: ${aiErr.message}` });
+      console.error("HF API error:", aiErr.response?.data || aiErr.message);
+      return res.status(503).json({ error: "Emotion analysis unavailable, please try again." });
     }
 
     const { data, error } = await supabase
@@ -79,7 +137,7 @@ export async function getStats(req, res) {
 
     res.json({
       total_entries: data.length,
-      avg_risk_score: data.length ? +(totalRisk / data.length).toFixed(1) : 0,
+      avg_risk_score: data.length ? round(totalRisk / data.length) : 0,
       emotion_distribution: emotionCount,
       category_distribution: categoryCount,
       timeline: data.map((e) => ({
