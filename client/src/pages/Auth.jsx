@@ -48,7 +48,7 @@ export default function Auth() {
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 8 }}>
           <span style={{ fontFamily: "'Syne', sans-serif", fontSize: 30, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>
-            WellScopeGuard
+            WellScope
           </span>
           <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--yellow)", marginLeft: 4, marginBottom: 8, verticalAlign: "middle" }} />
         </div>
